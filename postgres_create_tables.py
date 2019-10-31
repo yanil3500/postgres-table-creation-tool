@@ -2,6 +2,7 @@
 from psycopg2 import connect as connect_to, DatabaseError
 import csv
 import sys
+import fire
 __version__ = '1.0.0'
 
 table_names = ['drugs', 'isoforms', 'isoforms_responds_drugs', 'lit_discovers_di_response', 'lit_discovers_dm_response', 'lit_discovers_drugs', 'lit_discovers_isoforms', 'lit_discovers_mutations', 'literature', 'mutations', 'mutations_responds_drugs']                
@@ -22,17 +23,17 @@ create_table_commands = [
 
 
 insert_into_commands = {
-'drugs': {'query': """INSERT INTO Drugs (c1,c2,c3) VALUES(%s,%s,%s)""", 'number_of_values': 3},
-'isoforms': {'query': """INSERT INTO Isoforms(c1,c2) VALUES(%s,%s)""", 'number_of_values': 2},
-'mutations': {'query': """INSERT INTO Mutations(c1,c2,c3) VALUES(%s,%s,%s)""", 'number_of_values': 3},
-'isoforms_responds_drugs': {'query': """INSERT INTO Isoforms_Responds_Drugs(c1,c2,c3,c4) VALUES(%s,%s,%s,%s)""", 'number_of_values': 4},
-'mutations_responds_drugs': {'query': """INSERT INTO Mutations_Responds_Drugs(c1,c2,c3,c4,c5) VALUES(%s,%s,%s,%s,%s)""", 'number_of_values': 5},
+'drugs': {'query': """INSERT INTO Drugs (d_name,d_nucleotide_sequence,manufacturer) VALUES(%s,%s,%s)""", 'number_of_values': 3},
+'isoforms': {'query': """INSERT INTO Isoforms(isoform_id, i_nucleotide_sequence) VALUES(%s,%s)""", 'number_of_values': 2},
+'mutations': {'query': """INSERT INTO Mutations(amino_acid_sequence,isoform_id,m_nucleotide_sequence) VALUES(%s,%s,%s)""", 'number_of_values': 3},
+'isoforms_responds_drugs': {'query': """INSERT INTO Isoforms_Responds_Drugs(d_name,isoform_id,sensitivity,resistance_mechanism) VALUES(%s,%s,%s,%s)""", 'number_of_values': 4},
+'mutations_responds_drugs': {'query': """INSERT INTO Mutations_Responds_Drugs(d_name,amino_acid_sequence,isoform_id,sensitivity,resistance_mechanism) VALUES(%s,%s,%s,%s,%s)""", 'number_of_values': 5},
 'literature': {'query': """INSERT INTO Literature(c1,c2) VALUES(%s, %s)""", 'number_of_values': 2},
-'lit_discovers_drugs': {'query': """INSERT INTO Lit_Discovers_Drugs(c1,c2) VALUES(%s, %s)""", 'number_of_values': 2},
-'lit_discovers_isoforms': {'query': """INSERT INTO Lit_Discovers_Isoforms(c1,c2) VALUES(%s, %s)""", 'number_of_values': 2},
-'lit_discovers_mutations': {'query': """INSERT INTO Lit_Discovers_Mutations(c1,c2,c3) VALUES(%s,%s,%s)""", 'number_of_values': 3},
-'lit_discovers_di_response': {'query': """INSERT INTO Lit_Discovers_DI_Response(c1,c2,c3) VALUES(%s,%s,%s)""", 'number_of_values': 3},
-'lit_discovers_dm_response': {'query': """INSERT INTO Lit_Discovers_DM_Response(c1,c2,c3,c4) VALUES(%s,%s,%s,%s)""", 'number_of_values': 4} 
+'lit_discovers_drugs': {'query': """INSERT INTO Lit_Discovers_Drugs(doi,date) VALUES(%s, %s)""", 'number_of_values': 2},
+'lit_discovers_isoforms': {'query': """INSERT INTO Lit_Discovers_Isoforms(doi,isoform_id) VALUES(%s, %s)""", 'number_of_values': 2},
+'lit_discovers_mutations': {'query': """INSERT INTO Lit_Discovers_Mutations(doi,amino_acid_sequence,isoform_id) VALUES(%s,%s,%s)""", 'number_of_values': 3},
+'lit_discovers_di_response': {'query': """INSERT INTO Lit_Discovers_DI_Response(doi,d_name,isoform_id) VALUES(%s,%s,%s)""", 'number_of_values': 3},
+'lit_discovers_dm_response': {'query': """INSERT INTO Lit_Discovers_DM_Response(doi,d_name,amino_acid_sequence,isoform_id) VALUES(%s,%s,%s,%s)""", 'number_of_values': 4} 
     }
 
 
@@ -56,12 +57,12 @@ def config(filename='database.ini', section='postgresql'):
     return db
 
 
-def connect(database_configuration_path):
+def connect():
     """Connect to the PostgreSQL database server"""
     conn = None
     try:
         # read connection parameters
-        params = config(filename=database_configuration_path)
+        params = config()
 
         # connect to the PostgresSQL server
         conn = connect_to(**params)
@@ -70,10 +71,12 @@ def connect(database_configuration_path):
     except (Exception, DatabaseError) as error:
         print(error)
 
-def create_tables(connection):
+def create_tables(debug=True):
     # drop all tables
+    connection = connect()
     cur = connection.cursor()
-    cur.execute('DROP SCHEMA public CASCADE; CREATE SCHEMA public;')
+    if debug:
+        cur.execute('DROP SCHEMA public CASCADE; CREATE SCHEMA public;')
 
     # create tables
     for command in create_table_commands:
@@ -86,8 +89,11 @@ def create_tables(connection):
         connection.close()
         print('Database connection is closed.')
 
-def insert_data(connection, insert_statements):
+def insert_data(csv_filename):
+    connection = connect()
     cursor = connection.cursor()
+    print('csv_filename: ' + csv_filename)
+    insert_statements = prepare_insert_statements(csv_filename)
     for statement, values in insert_statements:
         cursor.execute(statement, values)
     connection.commit()
@@ -125,8 +131,13 @@ def is_table_in_db(db_conn, table_name):
     db_cur.close()
     return False
 
+def print_this(el):
+    for e in el:
+        print(e)
 
 
 if __name__ == '__main__':
-    prepare_insert_statements(sys.argv[1])
-    conn = connect('database.ini')
+    fire.Fire({
+        'create_tables': create_tables,
+        'insert_data': insert_data
+    })
