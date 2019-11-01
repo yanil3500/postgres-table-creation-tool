@@ -7,6 +7,6 @@
    
 ## Note on `insert data`
 1. It expects a csv file that follows the following format:
-   1. <name of the relation>, followed by the values to be inserted
+   1. `name of the relation`, followed by the values to be inserted
       1. For example, if I wanted to insert data to the drugs tables, the csv line would like this:
          1. drugs,benztropine,Dacelo-ovaeguineae,"Upsher-Smith Laboratories, Inc."
