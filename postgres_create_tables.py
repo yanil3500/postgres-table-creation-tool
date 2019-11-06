@@ -13,7 +13,7 @@ create_table_commands = [
     """CREATE TABLE Mutations ( Amino_Acid_Sequence varchar,Isoform_ID varchar,M_Nucleotide_Sequence varchar,PRIMARY KEY (Amino_Acid_Sequence, Isoform_ID),FOREIGN KEY (Isoform_ID) REFERENCES Isoforms ON DELETE CASCADE)""",
     """CREATE TABLE Isoforms_Responds_Drugs ( D_Name varchar,Isoform_ID varchar,Sensitivity INTEGER,Resistance_Mechanism varchar,PRIMARY KEY (D_Name, Isoform_ID),FOREIGN KEY (D_Name) REFERENCES Drugs, FOREIGN KEY (Isoform_ID) REFERENCES Isoforms)""",
     """CREATE TABLE Mutations_Responds_Drugs ( D_Name varchar, Amino_Acid_Sequence varchar,Isoform_ID varchar, Sensitivity INTEGER,Resistance_Mechanism varchar,PRIMARY KEY (D_Name, Amino_Acid_Sequence, Isoform_ID),FOREIGN KEY (D_Name) REFERENCES Drugs,FOREIGN KEY (Amino_Acid_Sequence, Isoform_ID) REFERENCES Mutations)""",
-    """CREATE TABLE Literature ( DOI varchar,Date DATE,PRIMARY KEY (DOI))""",
+    """CREATE TABLE Literature (Author varchar, Title varchar, Publication_Title varchar, Publication_Year integer, DOI varchar, Issue varchar, Volume varchar, Last_Updated DATE, PRIMARY KEY (DOI))""",
     """CREATE TABLE Lit_Discovers_Drugs ( DOI varchar,D_Name varchar,PRIMARY KEY (DOI, D_Name),FOREIGN KEY (DOI) REFERENCES Literature, FOREIGN KEY (D_Name) REFERENCES Drugs)""",
     """CREATE TABLE Lit_Discovers_Isoforms ( DOI varchar,Isoform_ID varchar,PRIMARY KEY (DOI, Isoform_ID),FOREIGN KEY (DOI) REFERENCES Literature,FOREIGN KEY (Isoform_ID) REFERENCES Isoforms)""",
     """CREATE TABLE Lit_Discovers_Mutations ( DOI varchar,Amino_Acid_Sequence varchar,Isoform_ID varchar,PRIMARY KEY (DOI, Amino_Acid_Sequence, Isoform_ID),FOREIGN KEY (DOI) REFERENCES Literature,FOREIGN KEY (Amino_Acid_Sequence, Isoform_ID) REFERENCES Mutations)""",
@@ -28,7 +28,7 @@ insert_into_commands = {
 'mutations': {'query': """INSERT INTO Mutations(amino_acid_sequence,isoform_id,m_nucleotide_sequence) VALUES(%s,%s,%s)""", 'number_of_values': 3},
 'isoforms_responds_drugs': {'query': """INSERT INTO Isoforms_Responds_Drugs(d_name,isoform_id,sensitivity,resistance_mechanism) VALUES(%s,%s,%s,%s)""", 'number_of_values': 4},
 'mutations_responds_drugs': {'query': """INSERT INTO Mutations_Responds_Drugs(d_name,amino_acid_sequence,isoform_id,sensitivity,resistance_mechanism) VALUES(%s,%s,%s,%s,%s)""", 'number_of_values': 5},
-'literature': {'query': """INSERT INTO Literature(c1,c2) VALUES(%s, %s)""", 'number_of_values': 2},
+'literature': {'query': """INSERT INTO Literature(author, title, publication_title, publication_year, doi, issue, volume, last_updated) VALUES(%s, %s, %s, %s, %s, %s, %s, now())""", 'number_of_values': 7},
 'lit_discovers_drugs': {'query': """INSERT INTO Lit_Discovers_Drugs(doi,date) VALUES(%s, %s)""", 'number_of_values': 2},
 'lit_discovers_isoforms': {'query': """INSERT INTO Lit_Discovers_Isoforms(doi,isoform_id) VALUES(%s, %s)""", 'number_of_values': 2},
 'lit_discovers_mutations': {'query': """INSERT INTO Lit_Discovers_Mutations(doi,amino_acid_sequence,isoform_id) VALUES(%s,%s,%s)""", 'number_of_values': 3},
@@ -103,16 +103,34 @@ def insert_data(csv_filename):
 
 def prepare_insert_statements(csv_filename):
     insert_statements = []
-    with open(csv_filename) as csv_file:
+    duplicates = set()
+    with open(csv_filename, mode='r', encoding='utf-8-sig') as csv_file:
         reader = csv.reader(csv_file, delimiter=',')
         for row in reader:
+            if row[0] == 'Table':
+                continue
             insert_statement = insert_into_commands[row[0]]['query']
             num_of_expected_values = insert_into_commands[row[0]]['number_of_values']
-            values = row[1:]
+            values = update_empty_values_with_none(row[1:])
+            joined_vals = ''.join(row[1:])
+            if joined_vals not in duplicates:
+                duplicates.add(joined_vals)
+            else:
+                continue
             if len(values) < num_of_expected_values:
+                print('values: {}'.format(values))
                 raise Exception("Number of provided values is not equal to the number of expected values")
             insert_statements.append((insert_statement, values))
     return insert_statements
+
+def update_empty_values_with_none(values):
+    vals = []
+    for val in values:
+        if val:
+            vals.append(val)
+        else:
+            vals.append(None)
+    return vals
 
 
 def is_table_in_db(db_conn, table_name):
