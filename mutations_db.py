@@ -6,18 +6,20 @@ import sys
 import fire
 __version__ = '1.0.0'
 
+table_names = ['drugs', 'isoforms', 'isoforms_responds_drugs', 'lit_discovers_di_response', 'lit_discovers_dm_response', 'lit_discovers_drugs', 'lit_discovers_isoforms', 'lit_discovers_mutations', 'literature', 'mutations', 'mutations_responds_drugs']                
+
 create_table_commands = [
-    """CREATE TABLE Drugs ( D_Name VARCHAR(255) PRIMARY KEY, D_Nucleotide_Sequence VARCHAR(255), Manufacturer VARCHAR(255))""",
+    """CREATE TABLE Drugs ( D_Name VARCHAR(100) PRIMARY KEY, D_Nucleotide_Sequence VARCHAR(255), Manufacturer VARCHAR(155))""",
     """CREATE TABLE Isoforms ( Isoform_ID VARCHAR(255) PRIMARY KEY,I_Nucleotide_Sequence VARCHAR(255))""",
     """CREATE TABLE Mutations ( Amino_Acid_Sequence VARCHAR(255),Isoform_ID VARCHAR(255),M_Nucleotide_Sequence VARCHAR(255),PRIMARY KEY (Amino_Acid_Sequence, Isoform_ID),FOREIGN KEY (Isoform_ID) REFERENCES Isoforms(Isoform_ID) ON DELETE CASCADE)""",
-    """CREATE TABLE Isoforms_Responds_Drugs ( D_Name VARCHAR(255),Isoform_ID VARCHAR(255),Sensitivity INTEGER,Resistance_Mechanism VARCHAR(255),PRIMARY KEY (D_Name, Isoform_ID),FOREIGN KEY (D_Name) REFERENCES Drugs(D_Name), FOREIGN KEY (Isoform_ID) REFERENCES Isoforms(Isoform_ID))""",
-    """CREATE TABLE Mutations_Responds_Drugs ( D_Name VARCHAR(255), Amino_Acid_Sequence VARCHAR(255),Isoform_ID VARCHAR(255), Sensitivity INTEGER,Resistance_Mechanism VARCHAR(255),PRIMARY KEY (D_Name, Amino_Acid_Sequence, Isoform_ID),FOREIGN KEY (D_Name) REFERENCES Drugs(D_Name),FOREIGN KEY (Amino_Acid_Sequence, Isoform_ID) REFERENCES Mutations(Amino_Acid_Sequence, Isoform_ID))""",
+    """CREATE TABLE Isoforms_Responds_Drugs ( D_Name VARCHAR(100),Isoform_ID VARCHAR(255),Sensitivity INTEGER,Resistance_Mechanism VARCHAR(255),PRIMARY KEY (D_Name, Isoform_ID),FOREIGN KEY (D_Name) REFERENCES Drugs(D_Name), FOREIGN KEY (Isoform_ID) REFERENCES Isoforms(Isoform_ID))""",
+    """CREATE TABLE Mutations_Responds_Drugs ( D_Name VARCHAR(100), Amino_Acid_Sequence VARCHAR(255),Isoform_ID VARCHAR(255), Sensitivity INTEGER,Resistance_Mechanism VARCHAR(255),PRIMARY KEY (D_Name, Amino_Acid_Sequence, Isoform_ID),FOREIGN KEY (D_Name) REFERENCES Drugs(D_Name),FOREIGN KEY (Amino_Acid_Sequence, Isoform_ID) REFERENCES Mutations(Amino_Acid_Sequence, Isoform_ID))""",
     """CREATE TABLE Literature (Author VARCHAR(255), Title VARCHAR(255), Publication_Title VARCHAR(255), Publication_Year integer, DOI VARCHAR(255) PRIMARY KEY, Issue VARCHAR(255), Volume VARCHAR(255), Last_Updated DATE)""",
-    """CREATE TABLE Lit_Discovers_Drugs ( DOI VARCHAR(255),D_Name VARCHAR(255),PRIMARY KEY (DOI, D_Name),FOREIGN KEY (DOI) REFERENCES Literature(DOI), FOREIGN KEY (D_Name) REFERENCES Drugs(D_Name))""",
-    """CREATE TABLE Lit_Discovers_Isoforms ( DOI VARCHAR(255),Isoform_ID VARCHAR(255),PRIMARY KEY (DOI, Isoform_ID),FOREIGN KEY (DOI) REFERENCES Literature(DOI),FOREIGN KEY (Isoform_ID) REFERENCES Isoforms(Isoform_ID)""",
-    """CREATE TABLE Lit_Discovers_Mutations ( DOI VARCHAR(255),Amino_Acid_Sequence VARCHAR(255),Isoform_ID VARCHAR(255),PRIMARY KEY (DOI, Amino_Acid_Sequence, Isoform_ID),FOREIGN KEY (DOI) REFERENCES Literature(DOI),FOREIGN KEY (Amino_Acid_Sequence, Isoform_ID) REFERENCES Mutations(Amino_Acid_Sequence, Isoform_ID))""",
-    """CREATE TABLE Lit_Discovers_DI_Response ( DOI VARCHAR(255),D_Name VARCHAR(255),Isoform_ID VARCHAR(255),PRIMARY KEY (DOI, D_Name, Isoform_ID),FOREIGN KEY (DOI) REFERENCES Literature(DOI),FOREIGN KEY (D_Name, Isoform_ID) REFERENCES Isoforms_Responds_Drugs)""",
-    """CREATE TABLE Lit_Discovers_DM_Response ( DOI VARCHAR(255),D_Name VARCHAR(255),Amino_Acid_Sequence VARCHAR(255),Isoform_ID VARCHAR(255),PRIMARY KEY (DOI, D_Name, Amino_Acid_Sequence, Isoform_ID),FOREIGN KEY (DOI) REFERENCES Literature(DOI),FOREIGN KEY (D_Name, Amino_Acid_Sequence, Isoform_ID) REFERENCES Mutations_Responds_Drugs((D_Name, Amino_Acid_Sequence, Isoform_ID)))""",
+    """CREATE TABLE Lit_Discovers_Drugs ( DOI VARCHAR(100),D_Name VARCHAR(100),PRIMARY KEY (DOI, D_Name),FOREIGN KEY (DOI) REFERENCES Literature(DOI), FOREIGN KEY (D_Name) REFERENCES Drugs(D_Name))""",
+    """CREATE TABLE Lit_Discovers_Isoforms ( DOI VARCHAR(100),Isoform_ID VARCHAR(255),PRIMARY KEY (DOI, Isoform_ID),FOREIGN KEY (DOI) REFERENCES Literature(DOI),FOREIGN KEY (Isoform_ID) REFERENCES Isoforms(Isoform_ID))""",
+    """CREATE TABLE Lit_Discovers_Mutations ( DOI VARCHAR(100),Amino_Acid_Sequence VARCHAR(255),Isoform_ID VARCHAR(255),PRIMARY KEY (DOI, Amino_Acid_Sequence, Isoform_ID),FOREIGN KEY (DOI) REFERENCES Literature(DOI),FOREIGN KEY (Amino_Acid_Sequence, Isoform_ID) REFERENCES Mutations(Amino_Acid_Sequence, Isoform_ID))""",
+    """CREATE TABLE Lit_Discovers_DI_Response ( DOI VARCHAR(100),D_Name VARCHAR(100),Isoform_ID VARCHAR(255),PRIMARY KEY (DOI, D_Name, Isoform_ID),FOREIGN KEY (DOI) REFERENCES Literature(DOI),FOREIGN KEY (D_Name, Isoform_ID) REFERENCES Isoforms_Responds_Drugs(D_Name, Isoform_ID))""",
+    """CREATE TABLE Lit_Discovers_DM_Response ( DOI VARCHAR(100),D_Name VARCHAR(100),Amino_Acid_Sequence VARCHAR(255),Isoform_ID VARCHAR(255),PRIMARY KEY (DOI, D_Name, Amino_Acid_Sequence, Isoform_ID),FOREIGN KEY (DOI) REFERENCES Literature(DOI),FOREIGN KEY (D_Name, Amino_Acid_Sequence, Isoform_ID) REFERENCES Mutations_Responds_Drugs(D_Name, Amino_Acid_Sequence, Isoform_ID))""",
 ]
 
 
@@ -75,8 +77,13 @@ def create_tables(debug=True):
     connection = connect()
     cur = connection.cursor()
     if debug:
-        cur.execute('DROP SCHEMA public')
-        cur.execute('CREATE SCHEMA public')
+        cur.execute('SET FOREIGN_KEY_CHECKS = 0')
+        print('Dropping all tables...')
+        for name in table_names:
+            command = 'DROP TABLE IF EXISTS ' + name
+            cur.execute(command)
+        print('Done.')
+        cur.execute('SET FOREIGN_KEY_CHECKS = 1')
 
     # create tables
     for command in create_table_commands:
