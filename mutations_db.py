@@ -1,24 +1,23 @@
 # cSpell:ignore psycopg2, zorba, sname, bname
-from psycopg2 import connect as connect_to, DatabaseError
+from mysql.connector.connection import MySQLConnection as connect_to
+from mysql.connector import errorcode as DatabaseError
 import csv
 import sys
 import fire
 __version__ = '1.0.0'
 
-table_names = ['drugs', 'isoforms', 'isoforms_responds_drugs', 'lit_discovers_di_response', 'lit_discovers_dm_response', 'lit_discovers_drugs', 'lit_discovers_isoforms', 'lit_discovers_mutations', 'literature', 'mutations', 'mutations_responds_drugs']                
-
 create_table_commands = [
-    """CREATE TABLE Drugs ( D_Name varchar, D_Nucleotide_Sequence varchar, Manufacturer varchar, PRIMARY KEY(D_Name))""",
-    """CREATE TABLE Isoforms ( Isoform_ID varchar,I_Nucleotide_Sequence varchar,PRIMARY KEY(Isoform_ID))""",
-    """CREATE TABLE Mutations ( Amino_Acid_Sequence varchar,Isoform_ID varchar,M_Nucleotide_Sequence varchar,PRIMARY KEY (Amino_Acid_Sequence, Isoform_ID),FOREIGN KEY (Isoform_ID) REFERENCES Isoforms ON DELETE CASCADE)""",
-    """CREATE TABLE Isoforms_Responds_Drugs ( D_Name varchar,Isoform_ID varchar,Sensitivity INTEGER,Resistance_Mechanism varchar,PRIMARY KEY (D_Name, Isoform_ID),FOREIGN KEY (D_Name) REFERENCES Drugs, FOREIGN KEY (Isoform_ID) REFERENCES Isoforms)""",
-    """CREATE TABLE Mutations_Responds_Drugs ( D_Name varchar, Amino_Acid_Sequence varchar,Isoform_ID varchar, Sensitivity INTEGER,Resistance_Mechanism varchar,PRIMARY KEY (D_Name, Amino_Acid_Sequence, Isoform_ID),FOREIGN KEY (D_Name) REFERENCES Drugs,FOREIGN KEY (Amino_Acid_Sequence, Isoform_ID) REFERENCES Mutations)""",
-    """CREATE TABLE Literature (Author varchar, Title varchar, Publication_Title varchar, Publication_Year integer, DOI varchar, Issue varchar, Volume varchar, Last_Updated DATE, PRIMARY KEY (DOI))""",
-    """CREATE TABLE Lit_Discovers_Drugs ( DOI varchar,D_Name varchar,PRIMARY KEY (DOI, D_Name),FOREIGN KEY (DOI) REFERENCES Literature, FOREIGN KEY (D_Name) REFERENCES Drugs)""",
-    """CREATE TABLE Lit_Discovers_Isoforms ( DOI varchar,Isoform_ID varchar,PRIMARY KEY (DOI, Isoform_ID),FOREIGN KEY (DOI) REFERENCES Literature,FOREIGN KEY (Isoform_ID) REFERENCES Isoforms)""",
-    """CREATE TABLE Lit_Discovers_Mutations ( DOI varchar,Amino_Acid_Sequence varchar,Isoform_ID varchar,PRIMARY KEY (DOI, Amino_Acid_Sequence, Isoform_ID),FOREIGN KEY (DOI) REFERENCES Literature,FOREIGN KEY (Amino_Acid_Sequence, Isoform_ID) REFERENCES Mutations)""",
-    """CREATE TABLE Lit_Discovers_DI_Response ( DOI varchar,D_Name varchar,Isoform_ID varchar,PRIMARY KEY (DOI, D_Name, Isoform_ID),FOREIGN KEY (DOI) REFERENCES Literature,FOREIGN KEY (D_Name, Isoform_ID) REFERENCES Isoforms_Responds_Drugs)""",
-    """CREATE TABLE Lit_Discovers_DM_Response ( DOI varchar,D_Name varchar,Amino_Acid_Sequence varchar,Isoform_ID varchar,PRIMARY KEY (DOI, D_Name, Amino_Acid_Sequence, Isoform_ID),FOREIGN KEY (DOI) REFERENCES Literature,FOREIGN KEY (D_Name, Amino_Acid_Sequence, Isoform_ID) REFERENCES Mutations_Responds_Drugs)""",
+    """CREATE TABLE Drugs ( D_Name VARCHAR(255) PRIMARY KEY, D_Nucleotide_Sequence VARCHAR(255), Manufacturer VARCHAR(255))""",
+    """CREATE TABLE Isoforms ( Isoform_ID VARCHAR(255) PRIMARY KEY,I_Nucleotide_Sequence VARCHAR(255))""",
+    """CREATE TABLE Mutations ( Amino_Acid_Sequence VARCHAR(255),Isoform_ID VARCHAR(255),M_Nucleotide_Sequence VARCHAR(255),PRIMARY KEY (Amino_Acid_Sequence, Isoform_ID),FOREIGN KEY (Isoform_ID) REFERENCES Isoforms(Isoform_ID) ON DELETE CASCADE)""",
+    """CREATE TABLE Isoforms_Responds_Drugs ( D_Name VARCHAR(255),Isoform_ID VARCHAR(255),Sensitivity INTEGER,Resistance_Mechanism VARCHAR(255),PRIMARY KEY (D_Name, Isoform_ID),FOREIGN KEY (D_Name) REFERENCES Drugs(D_Name), FOREIGN KEY (Isoform_ID) REFERENCES Isoforms(Isoform_ID))""",
+    """CREATE TABLE Mutations_Responds_Drugs ( D_Name VARCHAR(255), Amino_Acid_Sequence VARCHAR(255),Isoform_ID VARCHAR(255), Sensitivity INTEGER,Resistance_Mechanism VARCHAR(255),PRIMARY KEY (D_Name, Amino_Acid_Sequence, Isoform_ID),FOREIGN KEY (D_Name) REFERENCES Drugs(D_Name),FOREIGN KEY (Amino_Acid_Sequence, Isoform_ID) REFERENCES Mutations(Amino_Acid_Sequence, Isoform_ID))""",
+    """CREATE TABLE Literature (Author VARCHAR(255), Title VARCHAR(255), Publication_Title VARCHAR(255), Publication_Year integer, DOI VARCHAR(255) PRIMARY KEY, Issue VARCHAR(255), Volume VARCHAR(255), Last_Updated DATE)""",
+    """CREATE TABLE Lit_Discovers_Drugs ( DOI VARCHAR(255),D_Name VARCHAR(255),PRIMARY KEY (DOI, D_Name),FOREIGN KEY (DOI) REFERENCES Literature(DOI), FOREIGN KEY (D_Name) REFERENCES Drugs(D_Name))""",
+    """CREATE TABLE Lit_Discovers_Isoforms ( DOI VARCHAR(255),Isoform_ID VARCHAR(255),PRIMARY KEY (DOI, Isoform_ID),FOREIGN KEY (DOI) REFERENCES Literature(DOI),FOREIGN KEY (Isoform_ID) REFERENCES Isoforms(Isoform_ID)""",
+    """CREATE TABLE Lit_Discovers_Mutations ( DOI VARCHAR(255),Amino_Acid_Sequence VARCHAR(255),Isoform_ID VARCHAR(255),PRIMARY KEY (DOI, Amino_Acid_Sequence, Isoform_ID),FOREIGN KEY (DOI) REFERENCES Literature(DOI),FOREIGN KEY (Amino_Acid_Sequence, Isoform_ID) REFERENCES Mutations(Amino_Acid_Sequence, Isoform_ID))""",
+    """CREATE TABLE Lit_Discovers_DI_Response ( DOI VARCHAR(255),D_Name VARCHAR(255),Isoform_ID VARCHAR(255),PRIMARY KEY (DOI, D_Name, Isoform_ID),FOREIGN KEY (DOI) REFERENCES Literature(DOI),FOREIGN KEY (D_Name, Isoform_ID) REFERENCES Isoforms_Responds_Drugs)""",
+    """CREATE TABLE Lit_Discovers_DM_Response ( DOI VARCHAR(255),D_Name VARCHAR(255),Amino_Acid_Sequence VARCHAR(255),Isoform_ID VARCHAR(255),PRIMARY KEY (DOI, D_Name, Amino_Acid_Sequence, Isoform_ID),FOREIGN KEY (DOI) REFERENCES Literature(DOI),FOREIGN KEY (D_Name, Amino_Acid_Sequence, Isoform_ID) REFERENCES Mutations_Responds_Drugs((D_Name, Amino_Acid_Sequence, Isoform_ID)))""",
 ]
 
 
@@ -34,10 +33,10 @@ insert_into_commands = {
 'lit_discovers_mutations': {'query': """INSERT INTO Lit_Discovers_Mutations(doi,amino_acid_sequence,isoform_id) VALUES(%s,%s,%s)""", 'number_of_values': 3},
 'lit_discovers_di_response': {'query': """INSERT INTO Lit_Discovers_DI_Response(doi,d_name,isoform_id) VALUES(%s,%s,%s)""", 'number_of_values': 3},
 'lit_discovers_dm_response': {'query': """INSERT INTO Lit_Discovers_DM_Response(doi,d_name,amino_acid_sequence,isoform_id) VALUES(%s,%s,%s,%s)""", 'number_of_values': 4} 
-    }
+}
 
 
-def config(filename='database.ini', section='postgresql'):
+def config(filename='database.ini', section='mysql'):
     from configparser import ConfigParser
     # create a parser
     parser = ConfigParser()
@@ -46,15 +45,15 @@ def config(filename='database.ini', section='postgresql'):
 
 
     # get section, default to postgresql
-    db = {}
+    db_config = {}
     if parser.has_section(section):
         params = parser.items(section)
         for param in params:
-            db[param[0]] = param[1]
+            db_config[param[0]] = param[1]
     else:
         raise Exception(
             'Section {0} not found in the {1} file'.format(section, filename))
-    return db
+    return db_config
 
 
 def connect():
@@ -76,7 +75,8 @@ def create_tables(debug=True):
     connection = connect()
     cur = connection.cursor()
     if debug:
-        cur.execute('DROP SCHEMA public CASCADE; CREATE SCHEMA public;')
+        cur.execute('DROP SCHEMA public')
+        cur.execute('CREATE SCHEMA public')
 
     # create tables
     for command in create_table_commands:
